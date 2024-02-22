@@ -63,14 +63,92 @@ void main() {
 }
 `
 
-function testShader(fragmentShaderSource) {
+function testShader(vertexShaderSource, fragmentShaderSource) {
     const vertexShader = compileShader(gl.VERTEX_SHADER, vertexShaderSource)
     const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentShaderSource)
     const program = linkProgram(vertexShader, fragmentShader)
 }
 
 log('Testing shader 1')
-testShader(fragmentShaderSource1)
+testShader(vertexShaderSource, fragmentShaderSource1)
 
 log('Testing shader 2')
-testShader(fragmentShaderSource2)
+testShader(vertexShaderSource, fragmentShaderSource2)
+
+function getDepthVertexShaderSource(useAlphaTest) {
+    return `#version 300 es
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+    precision highp float;
+    precision highp int;
+#else
+    precision mediump float;
+    precision mediump int;
+#endif
+
+#define attribute in
+#define varying out
+#define texture2D texture
+
+#define ALPHA_TEST ${useAlphaTest ? 1 : 0}
+uniform mat4 mvp;
+attribute vec3 a_inputPosition;
+
+#if ALPHA_TEST
+attribute vec2 a_inputUV;
+varying vec2 vUV;
+#endif
+
+void main() {
+    gl_Position = mvp * vec4(a_inputPosition, 1.0);
+    
+    #if ALPHA_TEST
+    vUV = a_inputUV;
+    #endif
+}
+    `
+}
+
+function getDepthProgramFragmentSource(useAlphaTest) {
+    return `#version 300 es
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+    precision highp float;
+    precision highp int;
+#else
+    precision mediump float;
+    precision mediump int;
+#endif
+
+#define varying in
+#define texture2D texture
+#define textureCube texture
+
+out vec4 outColor0;
+#define gl_FragColor outColor0
+#define ALPHA_TEST ${useAlphaTest ? 1 : 0}
+
+#if ALPHA_TEST
+uniform sampler2D uTexture;
+varying vec2 vUV;
+#endif
+
+void main() {
+    #if ALPHA_TEST
+    float a = texture2D(uTexture, vUV).a;
+    if (a < 0.5)
+    {
+        discard;
+    }
+    #endif
+}
+    `
+}
+
+log('Testing shader 3')
+const v1 = getDepthVertexShaderSource(false)
+const f1 = getDepthProgramFragmentSource(false)
+testShader(v1, f1)
+
+log('Testing shader 4')
+const v2 = getDepthVertexShaderSource(true)
+const f2 = getDepthProgramFragmentSource(true)
+testShader(v2, f2)
