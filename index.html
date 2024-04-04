@@ -1,10 +1,134 @@
 <!doctype html>
 <html>
 <head>
-    <title>iOS 15 Shader Test</title>
+    <title>Sound Test</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<style>
+input[type="text"] {
+    width: 100px;
+}
+.buttons {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+.buttons button {
+    margin-right: 5px;
+}
+</style>
 </head>
 <body>
-    <script defer src="main.js"></script>
+    <div>
+        Frequency: <input type="text" id="frequency" value="440">
+    </div>
+    <div class="buttons" id="frequency-buttons"></div>
+
+    <div>
+        Duration in seconds: <td><input type="text" id="duration" value="0">
+    </div>
+    <div class="buttons" id="duration-buttons"></div>
+
+    <div>
+        Fade duration in seconds: <input type="text" id="fadeDuration" value="0.04">
+    </div>
+    <div class="buttons" id="fade-buttons"></div>
+
+    Play:
+    <div class="buttons" id="play-buttons"></div>
+
+    Click test:
+    <div>
+        <button id="click-test">Click me</button>
+    </div>
+    <div id="log-container"></div>
+
+<script type="text/javascript">
+const inputFrequency = document.getElementById("frequency")
+const inputDuration = document.getElementById("duration")
+const inputFadeDuration = document.getElementById("fadeDuration")
+
+function setValuesFromUrl() {
+    const params = new URLSearchParams(document.location.search)
+    function setParam(name, input) {
+        const value = params.get(name)
+        if (value != null) {
+            input.value = value
+        }
+    }
+    setParam("frequency", inputFrequency)
+    setParam("duration", inputDuration)
+    setParam("fade", inputFadeDuration)
+}
+
+setValuesFromUrl()
+
+let ctx
+
+function setupPresetButtons(inputId, containerId, buttons) {
+    const input = document.getElementById(inputId)
+    const container = document.getElementById(containerId)
+    buttons.forEach(({label, value}) => {
+        const button = document.createElement("button")
+        container.appendChild(button)
+        button.innerHTML = label
+        button.addEventListener("click", () => {
+            input.value = value
+        })
+    })
+}
+
+setupPresetButtons("frequency", "frequency-buttons", [220, 440, 880, 1760, 3000, 4000, 5000].map((f) => { return { label: f, value: f } }))
+
+setupPresetButtons("duration", "duration-buttons", ["0", "0.02", "0.05", "0.1"].map((f) => { return { label: f, value: f} }))
+setupPresetButtons("fadeDuration", "fade-buttons", ["0.04", "0.1", "0.5"].map((f) => { return { label: f, value: f} }))
+
+function play(waveType, frequency, duration, fadeDuration) {
+    const gain = ctx.createGain()
+    gain.connect(ctx.destination)
+    gain.gain.setValueAtTime(1, ctx.currentTime)
+    gain.gain.setValueAtTime(1, ctx.currentTime + duration)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration + fadeDuration)
+    const oscillator = ctx.createOscillator()
+    oscillator.connect(gain)
+    oscillator.type = waveType
+    oscillator.frequency.setValueAtTime(frequency, ctx.currentTime)
+    oscillator.start()
+    setTimeout(() => {
+        oscillator.stop()
+        gain.disconnect()
+        oscillator.disconnect()
+    }, 1000 * (duration + fadeDuration) + 100)
+    saveToHistory()
+}
+
+["sine", "square", "triangle", "sawtooth"].forEach((waveType) => {
+    const container = document.getElementById("play-buttons")
+    const button = document.createElement("button")
+    container.appendChild(button)
+    button.innerHTML = waveType
+    button.addEventListener("click", () => {
+        if (ctx == null) {
+            ctx = new AudioContext()
+        }
+        const frequency = Number(inputFrequency.value)
+        const duration = Number(inputDuration.value)
+        const fadeDuration = Number(inputFadeDuration.value)
+        play(waveType, frequency, duration, fadeDuration)
+    })
+})
+
+
+function saveToHistory() {
+    const url = `/?frequency=${inputFrequency.value}&duration=${inputDuration.value}&fade=${inputFadeDuration.value}`
+    history.pushState(null, null, url)
+}
+
+document.getElementById("click-test").addEventListener("click", () => {
+    const logContainer = document.getElementById("log-container")
+    const logItem = document.createElement("div")
+    logItem.innerHTML = `Cliked at ${performance.now()}`
+    logContainer.appendChild(logItem)
+})
+</script>
+
 </body>
 </html>
