@@ -1,10 +1,55 @@
 <!doctype html>
 <html>
 <head>
-    <title>Github.io Test</title>
+    <title>Pointer Events Test</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<style>
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.div-main {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(white, black);
+    touch-action: none;
+}
+</style>
 </head>
 <body>
-    Hello, human!
+    <div class="div-main">
+    </div>
+
+<script>
+let div = document.querySelector(".div-main")
+let isDown = false
+let count = 0
+div.addEventListener("pointerdown", (e) => {
+    isDown = true
+    logEvent(e)
+})
+div.addEventListener("pointerup", (e) => {
+    isDown = false
+    logEvent(e)
+})
+div.addEventListener("pointermove", (e) => {
+    if (isDown) {
+        logEvent(e)
+    }
+})
+function logEvent(e) {
+    count++
+    if (count > 20) {
+        div.innerHTML = ""
+        count = 0
+    }
+    let el = document.createElement("div")
+    el.innerText = `${e.type}, ${e.pointerType}, cx: ${e.clientX | 0}, cy: ${e.clientY | 0}`
+    div.appendChild(el)
+}
+</script>
 </body>
 </html>
